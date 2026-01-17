@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Correct App
+Exec=/usr/bin/google-chrome-stable --app-id=def
+Icon=chrome-def-Default
+StartupWMClass=chrome-def-Default

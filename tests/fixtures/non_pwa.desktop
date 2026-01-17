@@ -1,0 +1,4 @@
+[Desktop Entry]
+Name=Non PWA
+Exec=/usr/bin/firefox
+Icon=firefox

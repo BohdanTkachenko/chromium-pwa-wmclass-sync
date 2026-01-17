@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=New Name
+Exec=/usr/bin/google-chrome-stable --app-id=ghi
+Icon=chrome-ghi-Default
+StartupWMClass=chrome-ghi-Default
