@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Test App
+Exec=/usr/bin/google-chrome-stable --app-id=abc --profile-directory=Default
+Icon=chrome-abc-Default
+StartupWMClass=wrong-class

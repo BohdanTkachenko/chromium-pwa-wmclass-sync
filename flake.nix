@@ -85,11 +85,6 @@
         {
           options.programs.chromium-pwa-wmclass-sync = {
             service.enable = lib.mkEnableOption "Chromium PWA desktop file fix service";
-            rename.enable = lib.mkOption {
-              type = lib.types.bool;
-              default = false;
-              description = "Whether to rename .desktop files to match application names.";
-            };
           };
 
           config = lib.mkIf cfg.service.enable {
@@ -103,8 +98,7 @@
               };
               Service = {
                 Type = "oneshot";
-                ExecStart = "${self.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/chromium-pwa-wmclass-sync"
-                  + lib.optionalString (cfg.rename.enable) " --rename";
+                ExecStart = "${self.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/chromium-pwa-wmclass-sync";
               };
               Install = {
                 WantedBy = [ "default.target" ];

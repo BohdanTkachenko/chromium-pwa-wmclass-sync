@@ -3,7 +3,7 @@ name = "chromium-pwa-wmclass-sync"
 version = "0.1.0"
 edition = "2021"
 authors = ["Bohdan Tkachenko <bohdan@tkachenko.dev>"]
-description = "Fixes StartupWMClass and renames .desktop files for Chromium PWAs."
+description = "Fixes StartupWMClass and creates human-readable companion .desktop files for Chromium PWAs."
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

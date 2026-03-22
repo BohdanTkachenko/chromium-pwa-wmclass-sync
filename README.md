@@ -1,8 +1,8 @@
 # chromium-pwa-wmclass-sync
 
-Automatically correct `StartupWMClass` mismatches in Chromium PWA `.desktop` files. This tool resolves issues where PWAs are incorrectly grouped under the main browser icon instead of their own, especially on GNOME. This is a known upstream issue tracked at [https://issues.chromium.org/issues/41481818](https://issues.chromium.org/issues/41481818).
+Automatically fix `StartupWMClass` mismatches and create human-readable companion `.desktop` files for Chromium PWAs. This resolves issues where PWAs are incorrectly grouped under the main browser icon instead of their own, especially on GNOME. This is a known upstream issue tracked at [https://issues.chromium.org/issues/41481818](https://issues.chromium.org/issues/41481818).
 
-Additionally, it can optionally rename PWA `.desktop` files to use a sanitized, predictable version of the application name, enabling deterministic configuration management (e.g., for pinning apps to a Dock).
+For each PWA, the tool creates a companion `.desktop` file with the correct `StartupWMClass` and a human-readable name (e.g., `Google Calendar.desktop`), while hiding the original Chrome-generated file. This enables deterministic configuration management (e.g., for pinning apps to a Dock) and survives Chrome regenerating its files.
 
 This tool is implemented in Rust for high reliability and single-binary deployment.
 
@@ -31,10 +31,6 @@ This project provides a Home Manager module for easy integration and automated b
     {
       # Enable the service
       programs.chromium-pwa-wmclass-sync.service.enable = true;
-
-      # (Optional) Enable file renaming (defaults to false)
-      # If enabled, .desktop files will be renamed to match the application name.
-      # programs.chromium-pwa-wmclass-sync.rename.enable = true;
     }
     ```
 
@@ -56,7 +52,6 @@ chromium-pwa-wmclass-sync [OPTIONS]
 
 ### Options
 
-- `--rename`: Rename `.desktop` files to match the application name (disabled by default).
 - `--dry-run`: Print the changes that would be made without modifying files.
 - `-v, --verbose`: Enable verbose logging.
 - `--apps-dir <DIR>`: The directory to scan for `.desktop` files (defaults to `~/.local/share/applications/`).

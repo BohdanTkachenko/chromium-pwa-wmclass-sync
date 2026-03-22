@@ -24,32 +24,6 @@ mod tests {
     }
 
     #[test]
-    fn test_needs_wmclass_fix_mismatch() {
-        let content = "[Desktop Entry]\nIcon=chrome-abc-Default\nStartupWMClass=wrong\n";
-        assert!(needs_wmclass_fix(content));
-    }
-
-    #[test]
-    fn test_needs_wmclass_fix_match() {
-        let content =
-            "[Desktop Entry]\nIcon=chrome-abc-Default\nStartupWMClass=chrome-abc-Default\n";
-        assert!(!needs_wmclass_fix(content));
-    }
-
-    #[test]
-    fn test_needs_wmclass_fix_missing_wmclass() {
-        let content = "[Desktop Entry]\nIcon=chrome-abc-Default\n";
-        assert!(needs_wmclass_fix(content));
-    }
-
-    #[test]
-    fn test_get_fixed_content() {
-        let content = "[Desktop Entry]\nIcon=chrome-abc-Default\nStartupWMClass=wrong\n";
-        let fixed = get_fixed_content(content).unwrap();
-        assert!(fixed.contains("StartupWMClass=chrome-abc-Default"));
-    }
-
-    #[test]
     fn test_generate_new_filename_default_profile() {
         let content = "[Desktop Entry]\nName=Google Calendar\nExec=/usr/bin/google-chrome-stable --app-id=abc --profile-directory=Default\n";
         assert_eq!(
@@ -75,6 +49,79 @@ mod tests {
             "Google-Calendar.desktop"
         );
     }
+
+    #[test]
+    fn test_is_companion_file_true() {
+        let content =
+            "[Desktop Entry]\nX-ChromiumPwaSyncSource=chrome-abc-Default.desktop\n";
+        assert!(is_companion_file(content));
+    }
+
+    #[test]
+    fn test_is_companion_file_false() {
+        let content = "[Desktop Entry]\nName=Foo\n";
+        assert!(!is_companion_file(content));
+    }
+
+    #[test]
+    fn test_get_sync_source_present() {
+        let content =
+            "[Desktop Entry]\nX-ChromiumPwaSyncSource=chrome-abc-Default.desktop\n";
+        assert_eq!(
+            get_sync_source(content).unwrap(),
+            "chrome-abc-Default.desktop"
+        );
+    }
+
+    #[test]
+    fn test_get_sync_source_absent() {
+        let content = "[Desktop Entry]\nName=Foo\n";
+        assert!(get_sync_source(content).is_none());
+    }
+
+    #[test]
+    fn test_is_managed_original_true() {
+        let content = "[Desktop Entry]\nX-ChromiumPwaSyncManaged=true\n";
+        assert!(is_managed_original(content));
+    }
+
+    #[test]
+    fn test_is_managed_original_false() {
+        let content = "[Desktop Entry]\nName=Foo\n";
+        assert!(!is_managed_original(content));
+    }
+
+    #[test]
+    fn test_get_neutered_content() {
+        let content =
+            "[Desktop Entry]\nIcon=chrome-abc-Default\nStartupWMClass=chrome-abc-Default\n";
+        let neutered = get_neutered_content(content).unwrap();
+        assert!(!neutered.contains("StartupWMClass"));
+        assert!(neutered.contains("NoDisplay=true"));
+        assert!(neutered.contains("X-ChromiumPwaSyncManaged=true"));
+        assert!(neutered.contains("Icon=chrome-abc-Default"));
+    }
+
+    #[test]
+    fn test_get_companion_content() {
+        let content = "[Desktop Entry]\nIcon=chrome-abc-Default\nStartupWMClass=wrong\n";
+        let companion =
+            get_companion_content(content, "chrome-abc-Default.desktop").unwrap();
+        assert!(companion.contains("StartupWMClass=chrome-abc-Default"));
+        assert!(companion.contains("X-ChromiumPwaSyncSource=chrome-abc-Default.desktop"));
+        assert!(!companion.contains("NoDisplay"));
+    }
+
+    #[test]
+    fn test_get_companion_content_from_neutered() {
+        let content = "[Desktop Entry]\nIcon=chrome-abc-Default\nNoDisplay=true\nX-ChromiumPwaSyncManaged=true\n";
+        let companion =
+            get_companion_content(content, "chrome-abc-Default.desktop").unwrap();
+        assert!(companion.contains("StartupWMClass=chrome-abc-Default"));
+        assert!(companion.contains("X-ChromiumPwaSyncSource=chrome-abc-Default.desktop"));
+        assert!(!companion.contains("NoDisplay"));
+        assert!(!companion.contains("X-ChromiumPwaSyncManaged"));
+    }
 }
 
 pub fn is_chromium_pwa(content: &str) -> bool {
@@ -91,43 +138,6 @@ pub fn is_chromium_pwa(content: &str) -> bool {
     section
         .get("Exec")
         .is_some_and(|exec| exec.contains("--app-id="))
-}
-
-pub fn needs_wmclass_fix(content: &str) -> bool {
-    let i = match Ini::load_from_str(content) {
-        Ok(i) => i,
-        Err(_) => return false,
-    };
-
-    let section = match i.section(Some("Desktop Entry")) {
-        Some(s) => s,
-        None => return false,
-    };
-
-    let icon = section.get("Icon");
-    let wm_class = section.get("StartupWMClass");
-
-    match (icon, wm_class) {
-        (Some(i), Some(w)) => i != w,
-        (Some(_), None) => true,
-        _ => false,
-    }
-}
-
-pub fn get_fixed_content(content: &str) -> Option<String> {
-    let mut i = match Ini::load_from_str(content) {
-        Ok(i) => i,
-        Err(_) => return None,
-    };
-
-    let icon = i.section(Some("Desktop Entry"))?.get("Icon")?.to_string();
-
-    i.with_section(Some("Desktop Entry"))
-        .set("StartupWMClass", icon);
-
-    let mut buf = Vec::new();
-    i.write_to(&mut buf).ok()?;
-    String::from_utf8(buf).ok()
 }
 
 pub fn generate_new_filename(content: &str) -> Option<String> {
@@ -150,6 +160,54 @@ pub fn generate_new_filename(content: &str) -> Option<String> {
     } else {
         Some(format!("{} ({}).desktop", sanitized_name, profile))
     }
+}
+
+pub fn is_companion_file(content: &str) -> bool {
+    get_sync_source(content).is_some()
+}
+
+pub fn get_sync_source(content: &str) -> Option<String> {
+    let i = Ini::load_from_str(content).ok()?;
+    i.section(Some("Desktop Entry"))?
+        .get("X-ChromiumPwaSyncSource")
+        .map(|s| s.to_string())
+}
+
+pub fn is_managed_original(content: &str) -> bool {
+    let i = match Ini::load_from_str(content) {
+        Ok(i) => i,
+        Err(_) => return false,
+    };
+    i.section(Some("Desktop Entry"))
+        .and_then(|s| s.get("X-ChromiumPwaSyncManaged"))
+        .is_some_and(|v| v == "true")
+}
+
+pub fn get_neutered_content(content: &str) -> Option<String> {
+    let mut i = Ini::load_from_str(content).ok()?;
+    i.delete_from(Some("Desktop Entry"), "StartupWMClass");
+    i.with_section(Some("Desktop Entry"))
+        .set("NoDisplay", "true")
+        .set("X-ChromiumPwaSyncManaged", "true");
+    let mut buf = Vec::new();
+    i.write_to(&mut buf).ok()?;
+    String::from_utf8(buf).ok()
+}
+
+pub fn get_companion_content(content: &str, original_filename: &str) -> Option<String> {
+    let mut i = Ini::load_from_str(content).ok()?;
+    let icon = i
+        .section(Some("Desktop Entry"))?
+        .get("Icon")?
+        .to_string();
+    i.with_section(Some("Desktop Entry"))
+        .set("StartupWMClass", &icon)
+        .set("X-ChromiumPwaSyncSource", original_filename);
+    i.delete_from(Some("Desktop Entry"), "NoDisplay");
+    i.delete_from(Some("Desktop Entry"), "X-ChromiumPwaSyncManaged");
+    let mut buf = Vec::new();
+    i.write_to(&mut buf).ok()?;
+    String::from_utf8(buf).ok()
 }
 
 pub fn get_final_filepath(target_path: &Path, current_path: Option<&Path>) -> PathBuf {

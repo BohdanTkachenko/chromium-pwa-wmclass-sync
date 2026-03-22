@@ -1,5 +1,5 @@
 [Desktop Entry]
 Name=Collision Target
-Exec=/usr/bin/google-chrome-stable --app-id=jkl
+Exec=/usr/bin/google-chrome-stable --app-id=jkl --profile-directory=Default
 Icon=chrome-jkl-Default
 StartupWMClass=chrome-jkl-Default
