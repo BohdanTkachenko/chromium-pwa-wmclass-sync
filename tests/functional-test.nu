@@ -60,6 +60,11 @@ def main [] {
     if (not ($collision_companion | path exists)) {
         error make {msg: $"ERROR: Collision Target (1).desktop not found. Found: ($files | str join ', ')"}
     }
+    # chrome-jkl uses an absolute Icon= path; WM class must come from the filename
+    let collision = (open $collision_companion --raw)
+    if (not ($collision | str contains "StartupWMClass=chrome-jkl-Default")) {
+        error make {msg: "ERROR: Collision companion has wrong StartupWMClass (absolute Icon path)"}
+    }
 
     # Check non-PWA unchanged
     if (not (($apps_dir | path join "non_pwa.desktop") | path exists)) {

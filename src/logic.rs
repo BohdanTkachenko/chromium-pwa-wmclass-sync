@@ -113,6 +113,32 @@ mod tests {
     }
 
     #[test]
+    fn test_get_companion_content_absolute_icon_path() {
+        let content = "[Desktop Entry]\nIcon=/home/user/.local/share/icons/hicolor/128x128/apps/chrome-abc-Default.png\nStartupWMClass=wrong\n";
+        let companion =
+            get_companion_content(content, "chrome-abc-Default.desktop").unwrap();
+        assert!(companion.contains("StartupWMClass=chrome-abc-Default\n"));
+        assert!(companion.contains(
+            "Icon=/home/user/.local/share/icons/hicolor/128x128/apps/chrome-abc-Default.png"
+        ));
+    }
+
+    #[test]
+    fn test_get_companion_content_no_icon() {
+        let content = "[Desktop Entry]\nName=Foo\n";
+        let companion =
+            get_companion_content(content, "chrome-abc-Work.desktop").unwrap();
+        assert!(companion.contains("StartupWMClass=chrome-abc-Work"));
+    }
+
+    #[test]
+    fn test_get_wm_class() {
+        assert_eq!(get_wm_class("chrome-abc-Default.desktop"), Some("chrome-abc-Default"));
+        assert_eq!(get_wm_class("chrome-abc-Default"), None);
+        assert_eq!(get_wm_class(".desktop"), None);
+    }
+
+    #[test]
     fn test_get_companion_content_from_neutered() {
         let content = "[Desktop Entry]\nIcon=chrome-abc-Default\nNoDisplay=true\nX-ChromiumPwaSyncManaged=true\n";
         let companion =
@@ -194,14 +220,21 @@ pub fn get_neutered_content(content: &str) -> Option<String> {
     String::from_utf8(buf).ok()
 }
 
+/// Chromium names PWA launchers `<browser>-<app-id>-<profile>.desktop`, and the
+/// file stem is exactly the WM class / Wayland app_id of the PWA window. The
+/// `Icon=` key used to carry the same value, but newer Chrome versions write an
+/// absolute icon path there instead, so derive the class from the filename.
+pub fn get_wm_class(original_filename: &str) -> Option<&str> {
+    let stem = original_filename.strip_suffix(".desktop")?;
+    (!stem.is_empty()).then_some(stem)
+}
+
 pub fn get_companion_content(content: &str, original_filename: &str) -> Option<String> {
+    let wm_class = get_wm_class(original_filename)?;
     let mut i = Ini::load_from_str(content).ok()?;
-    let icon = i
-        .section(Some("Desktop Entry"))?
-        .get("Icon")?
-        .to_string();
+    i.section(Some("Desktop Entry"))?;
     i.with_section(Some("Desktop Entry"))
-        .set("StartupWMClass", &icon)
+        .set("StartupWMClass", wm_class)
         .set("X-ChromiumPwaSyncSource", original_filename);
     i.delete_from(Some("Desktop Entry"), "NoDisplay");
     i.delete_from(Some("Desktop Entry"), "X-ChromiumPwaSyncManaged");
